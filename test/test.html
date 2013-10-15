@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<script src="UserAPI.js"></script>
+		<script type="text/javascript">
+			jQuery(function($)
+			{
+				// Settings
+				var resellerID = 10165;
+				var host = 'flexdb-lveen.devdb.nl';
+				var version = 1;
+				var locale = 'nl-nl';
+
+				function getToken()
+				{
+					// TODO: in app settings
+					
+					if (typeof(Storage) !== 'undefined' && localStorage.publicKey && localStorage.privateKey)
+					{
+						return [localStorage.publicKey, localStorage.privateKey];
+					}
+					return null;
+				}
+
+				function setToken(token)
+				{
+					// TODO: in app settings
+					
+					if (typeof(Storage) !== 'undefined')
+					{
+						if (token)
+						{
+							localStorage.publicKey = token[0];
+							localStorage.privateKey = token[1];
+						}
+						else
+						{
+							delete localStorage.publicKey;
+							delete localStorage.privateKey;
+						}
+					}
+				}
+
+				function getUser()
+				{
+					// TODO: in app settings
+					
+					if (typeof(Storage) !== 'undefined' && localStorage.userId)
+					{
+						return {
+							id: localStorage.userId,
+							name: localStorage.userName
+						};
+					}
+					return null;
+				}
+
+				function setUser(user)
+				{
+					// TODO: in app settings
+					
+					if (typeof(Storage) !== 'undefined')
+					{
+						if (user)
+						{
+							localStorage.userId = user.id;
+							localStorage.userName = user.name;
+						}
+						else
+						{
+							delete localStorage.userId;
+							delete localStorage.userName;
+						}
+					}
+				}
+				
+				function init(cb, loginCb)
+				{
+					var token = getToken();
+					if (token && jQuery.isArray(token) && token.length == 2)
+					{
+						var api = UserAPI_2cnnct.factory(
+							token[0],
+							token[1],
+							host,
+							resellerID,
+							version,
+							locale
+						);
+						api.getOrError(function(error, check)
+						{
+							if (error || ! check)
+							{
+								setUser(null);
+								setToken(null);
+								init(cb, loginCb);
+								return;
+							}
+							cb(api, getUser());
+						}, [], 'check');
+					}
+					else
+					{
+						loginCb(function(resultCb, email, password)
+						{
+							UserAPI_2cnnct.login(
+								function(error, publicKey, privateKey, api, user)
+								{
+									if (error)
+									{
+										resultCb(error);
+										return;
+									}
+									setUser(user);
+									setToken([publicKey, privateKey]);
+									resultCb(null);
+									cb(api, getUser());
+								},
+								email,
+								password,
+								host,
+								resellerID,
+								version,
+								locale
+							);
+						});
+					}
+				}
+
+				function start(cb)
+				{
+					init(
+						cb,
+						function(loginCb)
+						{
+							loginCb(
+								function loginResult(error)
+								{
+									if (error)
+									{
+										start(cb);
+									}
+								},
+								prompt('Email', 'leon+uapi@deskbookers.com'),
+								prompt('Password', 'test1234')
+							);
+						}
+					);
+				}
+
+				start(function onStart(api, user)
+				{
+					var $logout = $('<a />')
+						.text('Logout')
+						.click(function()
+						{
+							api.postOrError(function(error, result)
+							{
+								if (error)
+								{
+									alert(error);
+								}
+								else
+								{
+									$logout.remove();
+									$info.remove();
+									start(onStart);
+								}
+							}, {}, 'logout');
+						});
+
+					var $info = $('<div />')
+						.text(JSON.stringify(user));
+
+					$('body')
+						.append($info)
+						.append($logout);
+
+					api.get(function(locations)
+					{
+						$('body').append('<br/>').append($('<textarea />').val(JSON.stringify(locations)));
+
+					}, [], 'location');
+				});
+			});
+		</script>
+	</head>
+	<body>
+	</body>
+</html>
