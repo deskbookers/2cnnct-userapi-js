@@ -204,7 +204,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					try
 					{
 						var result = JSON.parse(obj.responseText);
-						if (obj.error)
+						if (result.error)
 						{
 							throw new Error(
 								(result.errorCode ? result.errorCode : 500) + ': '
@@ -362,7 +362,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					try
 					{
 						var result = JSON.parse(obj.responseText);
-						if (obj.error)
+						if (result.error)
 						{
 							throw new Error(
 								(result.errorCode ? result.errorCode : 500) + ': '
@@ -448,7 +448,7 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 		{
 			if ( ! result.result)
 			{
-				cb(true);
+				cb(result.errorMessage || 'Invalid login credentials');
 				return;
 			}
 			var settings = result.result;
@@ -506,16 +506,66 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 							);
 						}
 					},
-					error: function(_, text)
+					error: function(obj, text)
 					{
-						cb(text || 'Connection error'); // Error
+						if (obj.status === 0 || obj.readyState === 0)
+						{
+							cb('Connection error');
+							return;
+						}
+						try
+						{
+							var result = JSON.parse(obj.responseText);
+							if (result.error)
+							{
+								throw new Error(
+									(result.errorCode ? result.errorCode : 500) + ': '
+									+ (result.errorMessage ? result.errorMessage : 'Error')
+								);
+							}
+							else
+							{
+								throw new SyntaxError('500: Invalid API response (format)');
+							}
+						}
+						catch (e)
+						{
+							cb(e);
+							return;
+						}
+						cb(text || 'Connection error');
 					}
 				});
 			}, password);
 		},
-		error: function()
+		error: function(obj, text)
 		{
-			cb(true);
+			if (obj.status === 0 || obj.readyState === 0)
+			{
+				cb('Connection error');
+				return;
+			}
+			try
+			{
+				var result = JSON.parse(obj.responseText);
+				if (result.error)
+				{
+					throw new Error(
+						(result.errorCode ? result.errorCode : 500) + ': '
+						+ (result.errorMessage ? result.errorMessage : 'Error')
+					);
+				}
+				else
+				{
+					throw new SyntaxError('500: Invalid API response (format)');
+				}
+			}
+			catch (e)
+			{
+				cb(e);
+				return;
+			}
+			cb(text || 'Connection error');
 		}
 	});
 };
