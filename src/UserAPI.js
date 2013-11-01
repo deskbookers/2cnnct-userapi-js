@@ -74,6 +74,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	{
 		for (var i = 0; i < requests.length; ++i)
 		{
+			requests[i].aborted = true;
 			requests[i].abort();
 		}
 		requests = [];
@@ -161,8 +162,10 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					x.setRequestHeader('Timestamp', timestamp);
 					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('POST', timestamp, uri, data));
 				},
-				success: function(result)
+				success: function(result, _, obj)
 				{
+					if (obj.aborted)
+						return;
 					try
 					{
 						if (result.error)
@@ -199,7 +202,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 				},
 				error: function(obj)
 				{
-					if (obj.status === 0 || obj.readyState === 0)
+					if (obj.aborted)
 						return;
 					try
 					{
@@ -319,8 +322,11 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					x.setRequestHeader('Timestamp', timestamp);
 					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('GET', timestamp, uri, {}));
 				},
-				success: function(result)
+				success: function(result, _, obj)
 				{
+					if (obj.aborted)
+						return;
+
 					try
 					{
 						if (result.error)
@@ -357,7 +363,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 				},
 				error: function(obj)
 				{
-					if (obj.status === 0 || obj.readyState === 0)
+					if (obj.aborted)
 						return;
 					try
 					{
