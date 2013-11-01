@@ -47,6 +47,38 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		return uri;
 	}
 
+	var requests = [];
+
+	function logRequest(req)
+	{
+		requests.push(req);
+		req.always(function()
+		{
+			unlogRequest(req);
+		});
+	}
+
+	function unlogRequest(req)
+	{
+		var pos = requests.indexOf(req);
+		if (pos != -1)
+		{
+			requests.splice(pos, 1);
+		}
+	}
+
+	/**
+	 * Abort all requests
+	 */
+	this.abortAll = function()
+	{
+		for (var i = 0; i < requests.length; ++i)
+		{
+			requests[i].abort();
+		}
+		requests = [];
+	};
+
 	/**
 	 * Post or error
 	 *
@@ -112,88 +144,92 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		var query = http_build_query(data);
 
 		// Ajax
-		$.ajax({
-			url: 'https://' + apiHost + uri,
-			data: query,
-			type: 'POST',
-			cache: false,
-			dataType: 'json',
-			crossDomain: true,
-			beforeSend: function(x)
-			{
-				// Timestamp
-				var timestamp = Math.round(new Date().getTime() / 1000);
+		logRequest(
+			$.ajax({
+				url: 'https://' + apiHost + uri,
+				data: query,
+				type: 'POST',
+				cache: false,
+				dataType: 'json',
+				crossDomain: true,
+				beforeSend: function(x)
+				{
+					// Timestamp
+					var timestamp = Math.round(new Date().getTime() / 1000);
 
-				// Headers
-				x.setRequestHeader('Timestamp', timestamp);
-				x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('POST', timestamp, uri, data));
-			},
-			success: function(result)
-			{
-				try
+					// Headers
+					x.setRequestHeader('Timestamp', timestamp);
+					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('POST', timestamp, uri, data));
+				},
+				success: function(result)
 				{
-					if (result.error)
+					try
 					{
-						throw new Error(
-							(result.errorCode ? result.errorCode : 500) + ': '
-							+ (result.errorMessage ? result.errorMessage : 'Error')
-						);
+						if (result.error)
+						{
+							throw new Error(
+								(result.errorCode ? result.errorCode : 500) + ': '
+								+ (result.errorMessage ? result.errorMessage : 'Error')
+							);
+						}
+						else if (result.result === undefined)
+						{
+							throw new Error('500: Invalid API response (format)');
+						}
 					}
-					else if (result.result === undefined)
+					catch (e)
 					{
-						throw new Error('500: Invalid API response (format)');
+						if (catch_)
+						{
+							cb(e, null);
+						}
+						else
+						{
+							throw e;
+						}
 					}
-				}
-				catch (e)
-				{
 					if (catch_)
 					{
-						cb(e, null);
+						cb(null, result.result);
 					}
 					else
 					{
-						throw e;
+						cb(result.result);
 					}
-				}
-				if (catch_)
+				},
+				error: function(obj)
 				{
-					cb(null, result.result);
-				}
-				else
-				{
-					cb(result.result);
-				}
-			},
-			error: function(obj)
-			{
-				try
-				{
-					var result = JSON.parse(obj.responseText);
-					if (obj.error)
+					if (obj.status === 0 || obj.readyState === 0)
+						return;
+					try
 					{
-						throw new Error(
-							(result.errorCode ? result.errorCode : 500) + ': '
-							+ (result.errorMessage ? result.errorMessage : 'Error')
-						);
+						var result = JSON.parse(obj.responseText);
+						if (obj.error)
+						{
+							throw new Error(
+								(result.errorCode ? result.errorCode : 500) + ': '
+								+ (result.errorMessage ? result.errorMessage : 'Error')
+							);
+						}
+						else
+						{
+							throw new SyntaxError('500: Invalid API response (format)');
+						}
 					}
-					else
+					catch (e)
 					{
-						throw new SyntaxError('500: Invalid API response (format)');
-					}
-				}
-				catch (e)
-				{
-					if (catch_)
-					{
-						cb(e, null);
-					}
-					else
-					{
-						throw e;
+						if (catch_)
+						{
+							cb(e, null);
+						}
+						else
+						{
+							throw e;
+						}
 					}
 				}
-			}
-		});
+			})
+		);
 	};
 
 	/**
@@ -267,87 +303,92 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		if (query.length > 0) uri += '?' + query;
 
 		// Ajax
-		$.ajax({
-			url: 'https://' + apiHost + uri,
-			type: 'GET',
-			cache: false,
-			dataType: 'json',
-			crossDomain: true,
-			beforeSend: function(x)
-			{
-				// Timestamp
-				var timestamp = Math.round(new Date().getTime() / 1000);
+		logRequest(
+			$.ajax({
+				url: 'https://' + apiHost + uri,
+				type: 'GET',
+				cache: false,
+				dataType: 'json',
+				crossDomain: true,
+				beforeSend: function(x)
+				{
+					// Timestamp
+					var timestamp = Math.round(new Date().getTime() / 1000);
 
-				// Headers
-				x.setRequestHeader('Timestamp', timestamp);
-				x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('GET', timestamp, uri, {}));
-			},
-			success: function(result)
-			{
-				try
+					// Headers
+					x.setRequestHeader('Timestamp', timestamp);
+					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('GET', timestamp, uri, {}));
+				},
+				success: function(result)
 				{
-					if (result.error)
+					try
 					{
-						throw new Error(
-							(result.errorCode ? result.errorCode : 500) + ': '
-							+ (result.errorMessage ? result.errorMessage : 'Error')
-						);
+						if (result.error)
+						{
+							throw new Error(
+								(result.errorCode ? result.errorCode : 500) + ': '
+								+ (result.errorMessage ? result.errorMessage : 'Error')
+							);
+						}
+						else if (result.result === undefined)
+						{
+							throw new Error('500: Invalid API response (format)');
+						}
 					}
-					else if (result.result === undefined)
+					catch (e)
 					{
-						throw new Error('500: Invalid API response (format)');
+						if (catch_)
+						{
+							cb(e, null);
+						}
+						else
+						{
+							throw e;
+						}
 					}
-				}
-				catch (e)
-				{
 					if (catch_)
 					{
-						cb(e, null);
+						cb(null, result.result);
 					}
 					else
 					{
-						throw e;
+						cb(result.result);
 					}
-				}
-				if (catch_)
+				},
+				error: function(obj)
 				{
-					cb(null, result.result);
-				}
-				else
-				{
-					cb(result.result);
-				}
-			},
-			error: function(obj)
-			{
-				try
-				{
-					var result = JSON.parse(obj.responseText);
-					if (obj.error)
+					if (obj.status === 0 || obj.readyState === 0)
+						return;
+					try
 					{
-						throw new Error(
-							(result.errorCode ? result.errorCode : 500) + ': '
-							+ (result.errorMessage ? result.errorMessage : 'Error')
-						);
+						var result = JSON.parse(obj.responseText);
+						if (obj.error)
+						{
+							throw new Error(
+								(result.errorCode ? result.errorCode : 500) + ': '
+								+ (result.errorMessage ? result.errorMessage : 'Error')
+							);
+						}
+						else
+						{
+							throw new SyntaxError('500: Invalid API response (format)');
+						}
 					}
-					else
+					catch (e)
 					{
-						throw new SyntaxError('500: Invalid API response (format)');
-					}
-				}
-				catch (e)
-				{
-					if (catch_)
-					{
-						cb(e, null);
-					}
-					else
-					{
-						throw e;
+
+						if (catch_)
+						{
+							cb(e, null);
+						}
+						else
+						{
+							throw e;
+						}
 					}
 				}
-			}
-		});
+			})
+		);
 	};
 }
 
@@ -445,7 +486,7 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 					{
 						if ( ! result.result || ! result.result.publicKey || ! result.result.privateKey || ! result.result.user)
 						{
-							cb(true); // Error
+							cb(result.errorMessage || 'Not a valid login'); // Error
 						}
 						else
 						{
@@ -465,9 +506,9 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 							);
 						}
 					},
-					error: function()
+					error: function(_, text)
 					{
-						cb(true); // Error
+						cb(text || 'Connection error'); // Error
 					}
 				});
 			}, password);
