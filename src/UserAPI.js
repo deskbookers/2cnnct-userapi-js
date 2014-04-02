@@ -68,6 +68,16 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	}
 
 	/**
+	 * Get reseller ID
+	 *
+	 * @return int
+	 */
+	this.getResellerID = function()
+	{
+		return resellerID;
+	}
+
+	/**
 	 * Abort all requests
 	 */
 	this.abortAll = function()
@@ -420,6 +430,96 @@ UserAPI_2cnnct.factory = function(publicKey, privateKey, apiHost, resellerID, ap
 		locale
 	);
 };
+
+/**
+ * Login for reseller collection
+ *
+ * @param function cb Callback function(bool error, publicKey, privateKey, api)
+ * @param string email
+ * @param string password
+ * @param string apiHost
+ * @param int resellerID
+ * @param int apiVersion
+ * @param string locale
+ * @param function cb2 Callback function(resellers, function cb(resellerID))
+ */
+UserAPI_2cnnct.loginResellerCollection = function(cb, email, password, apiHost, resellerCollectionID, apiVersion, locale, cb2)
+{
+	// API version
+	if ( ! apiVersion)
+	{
+		apiVersion = 1;
+	}
+
+	// Ajax
+	$.ajax({
+		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/loginResellerCollection?' + http_build_query({
+			email: JSON.stringify(email),
+			resellerCollectionID: JSON.stringify(resellerCollectionID)
+		}),
+		cache: false,
+		type: 'GET',
+		dataType: 'json',
+		crossDomain: true,
+		success: function(result)
+		{
+			if ( ! result.result)
+			{
+				cb(result.errorMessage || 'Invalid login credentials');
+				return;
+			}
+			var resellers = result.result;
+
+			if (resellers.length == 0)
+			{
+				cb('User is not part of the reseller collection');
+				return;
+			}
+			else if (resellers.length == 1)
+			{
+				UserAPI_2cnnct.login(cb, email, password, apiHost, resellers[0].id, apiVersion, locale);
+				return;
+			}
+			else
+			{
+				cb2(resellers, function(resellerID)
+				{
+					UserAPI_2cnnct.login(cb, email, password, apiHost, resellerID, apiVersion, locale);
+				});
+				return;
+			}
+		},
+		error: function(obj, text)
+		{
+			if (obj.status === 0 || obj.readyState === 0)
+			{
+				cb('Connection error');
+				return;
+			}
+			try
+			{
+				var result = JSON.parse(obj.responseText);
+				if (result.error)
+				{
+					throw new Error(
+						(result.errorCode ? result.errorCode : 500) + ': '
+						+ (result.errorMessage ? result.errorMessage : 'Error')
+					);
+				}
+				else
+				{
+					throw new SyntaxError('500: Invalid API response (format)');
+				}
+			}
+			catch (e)
+			{
+				cb(e);
+				return;
+			}
+			cb(text || 'Connection error');
+		}
+	});
+}
 
 /**
  * Login
