@@ -524,7 +524,7 @@ UserAPI_2cnnct.loginResellerCollection = function(cb, email, password, apiHost, 
 /**
  * Login
  *
- * @param function cb Callback function(bool error, publicKey, privateKey, api)
+ * @param function cb Callback function(bool error, publicKey, privateKey, api, user)
  * @param string email
  * @param string password
  * @param string apiHost
@@ -655,6 +655,256 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 			{
 				var result = JSON.parse(obj.responseText);
 				if (result.error)
+				{
+					throw new Error(
+						(result.errorCode ? result.errorCode : 500) + ': '
+						+ (result.errorMessage ? result.errorMessage : 'Error')
+					);
+				}
+				else
+				{
+					throw new SyntaxError('500: Invalid API response (format)');
+				}
+			}
+			catch (e)
+			{
+				cb(e);
+				return;
+			}
+			cb(text || 'Connection error');
+		}
+	});
+};
+
+/**
+ * Forgot password
+ *
+ * @param function cb Callback function(bool error, bool result)
+ * @param string email
+ * @param string apiHost
+ * @param int resellerID
+ * @param int apiVersion
+ * @param string locale
+ */
+UserAPI_2cnnct.forgotPassword = function(cb, email, apiHost, resellerID, apiVersion, locale)
+{
+	// API version
+	if ( ! apiVersion)
+	{
+		apiVersion = 1;
+	}
+
+	function hashPassword(cb, password)
+	{
+		var bcrypt = new bCrypt();
+		bcrypt.hashpw(
+			password,
+			settings,
+			function(hash)
+			{
+				cb(hash);
+			},
+			function()
+			{}
+		);
+	}
+
+	// Ajax
+	$.ajax({
+		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/forgot-password?' + http_build_query({
+			email: JSON.stringify(email),
+			__resellerID: JSON.stringify(resellerID)
+		}),
+		cache: false,
+		type: 'GET',
+		dataType: 'json',
+		crossDomain: true,
+		success: function(result)
+		{
+			if ( ! result.result)
+			{
+				cb(result.errorMessage || 'Invalid forgot password request');
+				return;
+			}
+			else
+			{
+				cb(false, result.result);
+			}
+		},
+		error: function(obj, text)
+		{
+			if (obj.status === 0 || obj.readyState === 0)
+			{
+				cb('Connection error');
+				return;
+			}
+			try
+			{
+				var result = JSON.parse(obj.responseText);
+				if (result.error)
+				{
+					throw new Error(
+						(result.errorCode ? result.errorCode : 500) + ': '
+						+ (result.errorMessage ? result.errorMessage : 'Error')
+					);
+				}
+				else
+				{
+					throw new SyntaxError('500: Invalid API response (format)');
+				}
+			}
+			catch (e)
+			{
+				cb(e);
+				return;
+			}
+			cb(text || 'Connection error');
+		}
+	});
+};
+
+/**
+ * Register
+ *
+ * @param function cb Callback function(bool error, publicKey, privateKey, api, user)
+ * @param string email
+ * @param string password
+ * @param string apiHost
+ * @param int resellerID
+ * @param int apiVersion
+ * @param string locale
+ */
+UserAPI_2cnnct.register = function(cb, email, password, firstName, lastName, apiHost, resellerID, apiVersion, locale)
+{
+	// API version
+	if ( ! apiVersion)
+	{
+		apiVersion = 1;
+	}
+
+	// Ajax
+	$.ajax({
+		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/prepareRegister?' + http_build_query({
+			__resellerID: JSON.stringify(resellerID)
+		}),
+		cache: false,
+		type: 'GET',
+		dataType: 'json',
+		crossDomain: true,
+		success: function(result)
+		{
+			if ( ! result.result)
+			{
+				cb(result.errorMessage || 'Could not prepare register request');
+				return;
+			}
+			var settings = result.result;
+
+			function hashPassword(cb, password)
+			{
+				var bcrypt = new bCrypt();
+				bcrypt.hashpw(
+					password,
+					settings,
+					function(hash)
+					{
+						cb(hash);
+					},
+					function()
+					{}
+				);
+			}
+
+			// Password hash
+			hashPassword(function(password)
+			{
+				// Ajax
+				$.ajax({
+					url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/register?' + http_build_query({
+						firstName: JSON.stringify(firstName),
+						lastName: JSON.stringify(lastName),
+						email: JSON.stringify(email),
+						password: JSON.stringify(password),
+						__resellerID: JSON.stringify(resellerID)
+					}),
+					cache: false,
+					type: 'GET',
+					dataType: 'json',
+					crossDomain: true,
+					success: function(result)
+					{
+						if ( ! result.result || ! result.result.publicKey || ! result.result.privateKey || ! result.result.user)
+						{
+							if (result.result && result.result.errors)
+							{
+								cb(result.result.errors);
+							}
+							else
+							{
+								cb(result.errorMessage || 'Not a valid register'); // Error
+							}
+						}
+						else
+						{
+							cb(
+								false,
+								result.result.publicKey,
+								result.result.privateKey,
+								UserAPI_2cnnct.factory(
+									result.result.publicKey,
+									result.result.privateKey,
+									apiHost,
+									resellerID,
+									apiVersion,
+									locale
+								),
+								result.result.user
+							);
+						}
+					},
+					error: function(obj, text)
+					{
+						if (obj.status === 0 || obj.readyState === 0)
+						{
+							cb('Connection error');
+							return;
+						}
+						try
+						{
+							var result = JSON.parse(obj.responseText);
+							if (result.error)
+							{
+								throw new Error(
+									(result.errorCode ? result.errorCode : 500) + ': '
+									+ (result.errorMessage ? result.errorMessage : 'Error')
+								);
+							}
+							else
+							{
+								throw new SyntaxError('500: Invalid API response (format)');
+							}
+						}
+						catch (e)
+						{
+							cb(e);
+							return;
+						}
+						cb(text || 'Connection error');
+					}
+				});
+			}, password);
+		},
+		error: function(obj, text)
+		{
+			if (obj.status === 0 || obj.readyState === 0)
+			{
+				cb('Connection error');
+				return;
+			}
+			try
+			{
+				var result = JSON.parse(obj.responseText);
+				if (result.errors)
 				{
 					throw new Error(
 						(result.errorCode ? result.errorCode : 500) + ': '
