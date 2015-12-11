@@ -886,32 +886,6 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		}
 	}
 
-	function getAPIError(response){
-		var data;
-		try {
-			data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-		} catch(e) {
-			//api response is not a JSON
-			return new Error('500: Invalid API response (format)');
-		}
-		
-
-		//error found in the successful response ('soft' error)
-		if (data.error) {
-			return new Error(
-				(data.errorCode ? data.errorCode : 500) + ': '
-				+ (data.errorMessage ? data.errorMessage : 'Error')
-			);
-		}
-
-		//wrong format of the api response
-		if (data.result === undefined || response.status > 399) {
-			return new Error('500: Invalid API response (format)');
-		}
-
-		return null;
-	}
-
 	/**
 	 * Get reseller ID
 	 *
@@ -1502,3 +1476,29 @@ UserAPI_2cnnct.register = function(cb, email, password, firstName, lastName, api
 			}
 		});
 };
+
+function getAPIError(response){
+	var data;
+	try {
+		data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+	} catch(e) {
+		//api response is not a JSON
+		return new Error('500: Invalid API response (format)');
+	}
+	
+
+	//error found in the successful response ('soft' error)
+	if (data.error) {
+		return new Error(
+			(data.errorCode ? data.errorCode : 500) + ': '
+			+ (data.errorMessage ? data.errorMessage : 'Error')
+		);
+	}
+
+	//wrong format of the api response
+	if (data.result === undefined || response.status > 399) {
+		return new Error('500: Invalid API response (format)');
+	}
+
+	return null;
+}
