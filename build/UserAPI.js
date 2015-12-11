@@ -972,7 +972,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 		// Body
 		var query = http_build_query(data);
-
+		var timestamp = Math.round(new Date().getTime() / 1000);
 		// Ajax
 		logRequest(
 			axios({
@@ -983,7 +983,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					responseType: 'json',
 					// withCredentials: false,
 					headers: {
-						'Timestamp': Math.round(new Date().getTime() / 1000),
+						'Timestamp': timestamp,
 						'Authenticate': publicKey + ':' + buildCheckHash('POST', timestamp, uri, data)
 					}
 				})
@@ -1079,7 +1079,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		if (query.length > 0) uri += '?' + query;
 
 
-
+		var timestamp = Math.round(new Date().getTime() / 1000);
 		// Ajax
 		logRequest(
 			axios({
@@ -1088,7 +1088,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 					responseType: 'json',
 					// withCredentials: false,
 					headers: {
-						'Timestamp': Math.round(new Date().getTime() / 1000),
+						'Timestamp': timestamp,
 						'Authenticate': publicKey + ':' + buildCheckHash('GET', timestamp, uri, {})
 					}
 				})
@@ -1157,6 +1157,7 @@ UserAPI_2cnnct.loginResellerCollection = function(cb, email, password, apiHost, 
 		apiVersion = 1;
 	}
 
+	var timestamp = Math.round(new Date().getTime() / 1000);
 	axios({
 			url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/loginResellerCollection?' + http_build_query({
 				email: JSON.stringify(email),
@@ -1166,7 +1167,7 @@ UserAPI_2cnnct.loginResellerCollection = function(cb, email, password, apiHost, 
 			responseType: 'json',
 			// withCredentials: false,
 			headers: {
-				'Timestamp': Math.round(new Date().getTime() / 1000),
+				'Timestamp': timestamp,
 				'Authenticate': publicKey + ':' + buildCheckHash('GET', timestamp, uri, {})
 			}
 		})
