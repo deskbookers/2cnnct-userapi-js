@@ -51,6 +51,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 	function logRequest(req)
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		requests.push(req);
 		req.always(function()
 		{
@@ -60,6 +62,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 	function unlogRequest(req)
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		var pos = requests.indexOf(req);
 		if (pos != -1)
 		{
@@ -82,6 +86,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	 */
 	this.abortAll = function()
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		for (var i = 0; i < requests.length; ++i)
 		{
 			requests[i].aborted = true;
@@ -126,7 +132,7 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	this.post = function(cb, data, uri, uriParams, catch_)
 	{
 		// Prepare/check arguments
-		if ( ! jQuery.isFunction(cb))
+		if ( typeof cb !== 'function' )
 		{
 			throw new Error('Invalid callback function provided');
 		}
@@ -153,95 +159,39 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 		// Body
 		var query = http_build_query(data);
-
+		var timestamp = Math.round(new Date().getTime() / 1000);
 		// Ajax
 		logRequest(
-			$.ajax({
-				url: 'https://' + apiHost + uri,
-				data: query,
-				type: 'POST',
-				cache: false,
-				dataType: 'json',
-				crossDomain: true,
-				beforeSend: function(x)
-				{
-					// Timestamp
-					var timestamp = Math.round(new Date().getTime() / 1000);
-
-					// Headers
-					x.setRequestHeader('Timestamp', timestamp);
-					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('POST', timestamp, uri, data));
-				},
-				success: function(result, _, obj)
-				{
-					if (obj.aborted)
-						return;
-					try
-					{
-						if (result.error)
-						{
-							throw new Error(
-								(result.errorCode ? result.errorCode : 500) + ': '
-								+ (result.errorMessage ? result.errorMessage : 'Error')
-							);
-						}
-						else if (result.result === undefined)
-						{
-							throw new Error('500: Invalid API response (format)');
-						}
+			axios({
+					url: 'https://' + apiHost + uri,
+					data: query,
+					method: 'post',
+					//cache: false,
+					responseType: 'json',
+					// withCredentials: false,
+					headers: {
+						'Timestamp': timestamp,
+						'Authenticate': publicKey + ':' + buildCheckHash('POST', timestamp, uri, data)
 					}
-					catch (e)
-					{
-						if (catch_)
-						{
-							cb(e, null);
-						}
-						else
-						{
-							throw e;
-						}
+				})
+				.then(function (response) {
+					var error = getAPIError(response);
+					if (catch_) {
+						cb(error, response.data.result);
+					} else if(error) {
+						throw error;
+					} else {
+						cb(response.data.result);
 					}
-					if (catch_)
-					{
-						cb(null, result.result);
-					}
-					else
-					{
-						cb(result.result);
-					}
-				},
-				error: function(obj)
-				{
-					if (obj.aborted)
-						return;
-					try
-					{
-						var result = JSON.parse(obj.responseText);
-						if (result.error)
-						{
-							throw new Error(
-								(result.errorCode ? result.errorCode : 500) + ': '
-								+ (result.errorMessage ? result.errorMessage : 'Error')
-							);
-						}
-						else
-						{
-							throw new SyntaxError('500: Invalid API response (format)');
-						}
-					}
-					catch (e)
-					{
-						if (catch_)
-						{
-							cb(e, null);
-						}
-						else
-						{
-							throw e;
-						}
-					}
-				}
-			})
+  				})
+  				.catch(function (response) {
+  					var error = getAPIError(response);
+  					if (catch_) {
+  						cb(error, null);
+  					} else if(error) {
+  						throw error;
+  					}
+  				})
 		);
 	};
 
@@ -283,11 +233,11 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	this.get = function(cb, fields, uri, uriParams, data, catch_)
 	{
 		// Prepare/check arguments
-		if ( ! jQuery.isFunction(cb))
+		if ( typeof cb !== 'function')
 		{
 			throw new Error('Invalid callback function provided');
 		}
-		if ( ! jQuery.isArray(fields))
+		if ( Object.prototype.toString.call( fields ) !== '[object Array]' )
 		{
 			throw new Error('Invalid fields array provided (not an array)');
 		}
@@ -315,95 +265,38 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 		var query = http_build_query(data);
 		if (query.length > 0) uri += '?' + query;
 
+
+		var timestamp = Math.round(new Date().getTime() / 1000);
 		// Ajax
 		logRequest(
-			$.ajax({
-				url: 'https://' + apiHost + uri,
-				type: 'GET',
-				cache: false,
-				dataType: 'json',
-				crossDomain: true,
-				beforeSend: function(x)
-				{
-					// Timestamp
-					var timestamp = Math.round(new Date().getTime() / 1000);
-
-					// Headers
-					x.setRequestHeader('Timestamp', timestamp);
-					x.setRequestHeader('Authenticate', publicKey + ':' + buildCheckHash('GET', timestamp, uri, {}));
-				},
-				success: function(result, _, obj)
-				{
-					if (obj.aborted)
-						return;
-
-					try
-					{
-						if (result.error)
-						{
-							throw new Error(
-								(result.errorCode ? result.errorCode : 500) + ': '
-								+ (result.errorMessage ? result.errorMessage : 'Error')
-							);
-						}
-						else if (result.result === undefined)
-						{
-							throw new Error('500: Invalid API response (format)');
-						}
+			axios({
+					url: 'https://' + apiHost + uri,
+					//cache: false,
+					responseType: 'json',
+					// withCredentials: false,
+					headers: {
+						'Timestamp': timestamp,
+						'Authenticate': publicKey + ':' + buildCheckHash('GET', timestamp, uri, {})
 					}
-					catch (e)
-					{
-						if (catch_)
-						{
-							cb(e, null);
-						}
-						else
-						{
-							throw e;
-						}
+				})
+				.then(function (response) {
+					var error = getAPIError(response);
+					if (catch_) {
+						cb(error, response.data.result);
+					} else if(error) {
+						throw error;
+					} else {
+						cb(response.data.result);
 					}
-					if (catch_)
-					{
-						cb(null, result.result);
-					}
-					else
-					{
-						cb(result.result);
-					}
-				},
-				error: function(obj)
-				{
-					if (obj.aborted)
-						return;
-					try
-					{
-						var result = JSON.parse(obj.responseText);
-						if (result.error)
-						{
-							throw new Error(
-								(result.errorCode ? result.errorCode : 500) + ': '
-								+ (result.errorMessage ? result.errorMessage : 'Error')
-							);
-						}
-						else
-						{
-							throw new SyntaxError('500: Invalid API response (format)');
-						}
-					}
-					catch (e)
-					{
-
-						if (catch_)
-						{
-							cb(e, null);
-						}
-						else
-						{
-							throw e;
-						}
-					}
-				}
-			})
+  				})
+  				.catch(function (response) {
+  					var error = getAPIError(response);
+  					if (catch_) {
+  						cb(error, null);
+  					} else if(error) {
+  						throw error;
+  					}
+  				})
 		);
 	};
 }
@@ -451,74 +344,51 @@ UserAPI_2cnnct.loginResellerCollection = function(cb, email, password, apiHost, 
 		apiVersion = 1;
 	}
 
-	// Ajax
-	$.ajax({
-		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/loginResellerCollection?' + http_build_query({
-			email: JSON.stringify(email),
-			resellerCollectionID: JSON.stringify(resellerCollectionID)
-		}),
-		cache: false,
-		type: 'GET',
-		dataType: 'json',
-		crossDomain: true,
-		success: function(result)
-		{
-			if ( ! result.result)
-			{
-				cb(result.errorMessage || 'Invalid login credentials');
+	var timestamp = Math.round(new Date().getTime() / 1000);
+	axios({
+			url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/loginResellerCollection?' + http_build_query({
+				email: JSON.stringify(email),
+				resellerCollectionID: JSON.stringify(resellerCollectionID)
+			}),
+			//cache: false,
+			responseType: 'json',
+			// withCredentials: false,
+			headers: {
+				'Timestamp': timestamp,
+				'Authenticate': publicKey + ':' + buildCheckHash('GET', timestamp, uri, {})
+			}
+		})
+		.then(function (response) {
+			if (!response.data.result) {
+				cb(response.data.errorMessage || 'Invalid login credentials');
 				return;
 			}
-			var resellers = result.result;
 
-			if (resellers.length == 0)
-			{
+			var resellers = response.data.result;
+			if (resellers.length == 0) {
 				cb('User is not part of the reseller collection');
 				return;
 			}
-			else if (resellers.length == 1)
-			{
+			
+			if (resellers.length == 1) {
 				UserAPI_2cnnct.login(cb, email, password, apiHost, resellers[0].id, apiVersion, locale);
 				return;
 			}
-			else
+			
+			cb2(resellers, function(resellerID)
 			{
-				cb2(resellers, function(resellerID)
-				{
-					UserAPI_2cnnct.login(cb, email, password, apiHost, resellerID, apiVersion, locale);
-				});
-				return;
-			}
-		},
-		error: function(obj, text)
-		{
-			if (obj.status === 0 || obj.readyState === 0)
-			{
+				UserAPI_2cnnct.login(cb, email, password, apiHost, resellerID, apiVersion, locale);
+			});
+			return;
+		})
+		.catch(function (response) {
+			var error = getAPIError(response);
+			if (error) {
+				cb(error);
+			} else {
 				cb('Connection error');
-				return;
 			}
-			try
-			{
-				var result = JSON.parse(obj.responseText);
-				if (result.error)
-				{
-					throw new Error(
-						(result.errorCode ? result.errorCode : 500) + ': '
-						+ (result.errorMessage ? result.errorMessage : 'Error')
-					);
-				}
-				else
-				{
-					throw new SyntaxError('500: Invalid API response (format)');
-				}
-			}
-			catch (e)
-			{
-				cb(e);
-				return;
-			}
-			cb(text || 'Connection error');
-		}
-	});
+		});
 }
 
 /**
@@ -540,25 +410,21 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 		apiVersion = 1;
 	}
 
-	// Ajax
-	$.ajax({
-		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/prepareLogin?' + http_build_query({
-			email: JSON.stringify(email),
-			__resellerID: JSON.stringify(resellerID)
-		}),
-		cache: false,
-		type: 'GET',
-		dataType: 'json',
-		crossDomain: true,
-		success: function(result)
-		{
-			if ( ! result.result)
-			{
-				cb(result.errorMessage || 'Invalid login credentials');
+	axios({
+			url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/prepareLogin?' + http_build_query({
+				email: JSON.stringify(email),
+				__resellerID: JSON.stringify(resellerID)
+			}),
+			//cache: false,
+			responseType: 'json'
+		})
+		.then(function (response) {
+			if (!response.data.result) {
+				cb(response.data.errorMessage || 'Invalid login credentials');
 				return;
 			}
-			var settings = result.result;
 
+			var settings = response.data.result;
 			function hashPassword(cb, password)
 			{
 				var bcrypt = new bCrypt();
@@ -577,103 +443,57 @@ UserAPI_2cnnct.login = function(cb, email, password, apiHost, resellerID, apiVer
 			// Password hash
 			hashPassword(function(password)
 			{
-				// Ajax
-				$.ajax({
-					url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/login?' + http_build_query({
-						email: JSON.stringify(email),
-						password: JSON.stringify(password),
-						__resellerID: JSON.stringify(resellerID)
-					}),
-					cache: false,
-					type: 'GET',
-					dataType: 'json',
-					crossDomain: true,
-					success: function(result)
-					{
-						if ( ! result.result || ! result.result.publicKey || ! result.result.privateKey || ! result.result.user)
+				axios({
+						url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/login?' + http_build_query({
+							email: JSON.stringify(email),
+							password: JSON.stringify(password),
+							__resellerID: JSON.stringify(resellerID)
+						}),
+						//cache: false,
+						responseType: 'json'
+						// withCredentials: false,
+					})
+					.then(function (response) {
+						if ( !response.data.result || !response.data.result.publicKey || ! response.data.result.privateKey || ! response.data.result.user)
 						{
-							cb(result.errorMessage || 'Not a valid login'); // Error
+							cb(response.data.errorMessage || 'Not a valid login'); // Error
 						}
 						else
 						{
 							cb(
 								false,
-								result.result.publicKey,
-								result.result.privateKey,
+								response.data.result.publicKey,
+								response.data.result.privateKey,
 								UserAPI_2cnnct.factory(
-									result.result.publicKey,
-									result.result.privateKey,
+									response.data.result.publicKey,
+									response.data.result.privateKey,
 									apiHost,
 									resellerID,
 									apiVersion,
 									locale
 								),
-								result.result.user
+								response.data.result.user
 							);
 						}
-					},
-					error: function(obj, text)
-					{
-						if (obj.status === 0 || obj.readyState === 0)
-						{
-							cb('Connection error');
-							return;
-						}
-						try
-						{
-							var result = JSON.parse(obj.responseText);
-							if (result.error)
-							{
-								throw new Error(
-									(result.errorCode ? result.errorCode : 500) + ': '
-									+ (result.errorMessage ? result.errorMessage : 'Error')
-								);
-							}
-							else
-							{
-								throw new SyntaxError('500: Invalid API response (format)');
-							}
-						}
-						catch (e)
-						{
-							cb(e);
-							return;
-						}
-						cb(text || 'Connection error');
-					}
-				});
+	  				})
+	  				.catch(function (response) {
+	  					var error = getAPIError(response);
+	  					if (error) {
+	  						cb(error);
+	  					} else {
+	  						cb('Connection error');
+	  					}
+	  				});
 			}, password);
-		},
-		error: function(obj, text)
-		{
-			if (obj.status === 0 || obj.readyState === 0)
-			{
+		})
+		.catch(function (response) {
+			var error = getAPIError(response);
+			if (error) {
+				cb(error);
+			} else {
 				cb('Connection error');
-				return;
 			}
-			try
-			{
-				var result = JSON.parse(obj.responseText);
-				if (result.error)
-				{
-					throw new Error(
-						(result.errorCode ? result.errorCode : 500) + ': '
-						+ (result.errorMessage ? result.errorMessage : 'Error')
-					);
-				}
-				else
-				{
-					throw new SyntaxError('500: Invalid API response (format)');
-				}
-			}
-			catch (e)
-			{
-				cb(e);
-				return;
-			}
-			cb(text || 'Connection error');
-		}
-	});
+		});
 };
 
 /**
@@ -709,58 +529,28 @@ UserAPI_2cnnct.forgotPassword = function(cb, email, apiHost, resellerID, apiVers
 		);
 	}
 
-	// Ajax
-	$.ajax({
-		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/forgot-password?' + http_build_query({
-			email: JSON.stringify(email),
-			__resellerID: JSON.stringify(resellerID)
-		}),
-		cache: false,
-		type: 'GET',
-		dataType: 'json',
-		crossDomain: true,
-		success: function(result)
-		{
-			if ( ! result.result)
-			{
-				cb(result.errorMessage || 'Invalid forgot password request');
-				return;
+	axios({
+			url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/forgot-password?' + http_build_query({
+				email: JSON.stringify(email),
+				__resellerID: JSON.stringify(resellerID)
+			}),
+			responseType: 'json'
+		})
+		.then(function (response) {
+			if (!response.data.result){
+				cb(response.data.errorMessage || 'Invalid forgot password request');
+			} else {
+				cb(false, response.data.result);
 			}
-			else
-			{
-				cb(false, result.result);
-			}
-		},
-		error: function(obj, text)
-		{
-			if (obj.status === 0 || obj.readyState === 0)
-			{
+		})
+		.catch(function (response) {
+			var error = getAPIError(response);
+			if (error) {
+				cb(error);
+			} else {
 				cb('Connection error');
-				return;
 			}
-			try
-			{
-				var result = JSON.parse(obj.responseText);
-				if (result.error)
-				{
-					throw new Error(
-						(result.errorCode ? result.errorCode : 500) + ': '
-						+ (result.errorMessage ? result.errorMessage : 'Error')
-					);
-				}
-				else
-				{
-					throw new SyntaxError('500: Invalid API response (format)');
-				}
-			}
-			catch (e)
-			{
-				cb(e);
-				return;
-			}
-			cb(text || 'Connection error');
-		}
-	});
+		});
 };
 
 /**
@@ -782,23 +572,19 @@ UserAPI_2cnnct.register = function(cb, email, password, firstName, lastName, api
 		apiVersion = 1;
 	}
 
-	// Ajax
-	$.ajax({
-		url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/prepareRegister?' + http_build_query({
-			__resellerID: JSON.stringify(resellerID)
-		}),
-		cache: false,
-		type: 'GET',
-		dataType: 'json',
-		crossDomain: true,
-		success: function(result)
-		{
-			if ( ! result.result)
-			{
-				cb(result.errorMessage || 'Could not prepare register request');
+	axios({
+			url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/prepareRegister?' + http_build_query({
+				__resellerID: JSON.stringify(resellerID)
+			}),
+			//cache: false,
+			responseType: 'json'
+		})
+		.then(function (response) {
+			if (!response.data.result) {
+				cb(response.data.errorMessage || 'Could not prepare register request');
 				return;
 			}
-			var settings = result.result;
+			var settings = response.data.result;
 
 			function hashPassword(cb, password)
 			{
@@ -818,110 +604,89 @@ UserAPI_2cnnct.register = function(cb, email, password, firstName, lastName, api
 			// Password hash
 			hashPassword(function(password)
 			{
-				// Ajax
-				$.ajax({
-					url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/register?' + http_build_query({
-						firstName: JSON.stringify(firstName),
-						lastName: JSON.stringify(lastName),
-						email: JSON.stringify(email),
-						password: JSON.stringify(password),
-						__resellerID: JSON.stringify(resellerID)
-					}),
-					cache: false,
-					type: 'GET',
-					dataType: 'json',
-					crossDomain: true,
-					success: function(result)
-					{
-						if ( ! result.result || ! result.result.publicKey || ! result.result.privateKey || ! result.result.user)
+				axios({
+						url: 'https://' + apiHost + '/userapi/v' + apiVersion + '/register?' + http_build_query({
+							firstName: JSON.stringify(firstName),
+							lastName: JSON.stringify(lastName),
+							email: JSON.stringify(email),
+							password: JSON.stringify(password),
+							__resellerID: JSON.stringify(resellerID)
+						}),
+						//cache: false,
+						responseType: 'json'
+					})
+					.then(function (response) {
+						if ( ! response.data.result || ! response.data.result.publicKey || ! response.data.result.privateKey || ! response.data.result.user)
 						{
-							if (result.result && result.result.errors)
+							if (response.data.result && response.data.result.errors)
 							{
-								cb(result.result.errors);
+								cb(response.data.result.errors);
 							}
 							else
 							{
-								cb(result.errorMessage || 'Not a valid register'); // Error
+								cb(response.data.errorMessage || 'Not a valid register'); // Error
 							}
 						}
 						else
 						{
 							cb(
 								false,
-								result.result.publicKey,
-								result.result.privateKey,
+								response.data.result.publicKey,
+								response.data.result.privateKey,
 								UserAPI_2cnnct.factory(
-									result.result.publicKey,
-									result.result.privateKey,
+									response.data.result.publicKey,
+									response.data.result.privateKey,
 									apiHost,
 									resellerID,
 									apiVersion,
 									locale
 								),
-								result.result.user
+								response.data.result.user
 							);
 						}
-					},
-					error: function(obj, text)
-					{
-						if (obj.status === 0 || obj.readyState === 0)
-						{
-							cb('Connection error');
-							return;
-						}
-						try
-						{
-							var result = JSON.parse(obj.responseText);
-							if (result.error)
-							{
-								throw new Error(
-									(result.errorCode ? result.errorCode : 500) + ': '
-									+ (result.errorMessage ? result.errorMessage : 'Error')
-								);
-							}
-							else
-							{
-								throw new SyntaxError('500: Invalid API response (format)');
-							}
-						}
-						catch (e)
-						{
-							cb(e);
-							return;
-						}
-						cb(text || 'Connection error');
-					}
-				});
-			}, password);
-		},
-		error: function(obj, text)
-		{
-			if (obj.status === 0 || obj.readyState === 0)
-			{
+	  				})
+	  				.catch(function (response) {
+	  					var error = getAPIError(response);
+	  					if (error) {
+	  						cb(error);
+	  					} else {
+	  						cb('Connection error');
+	  					}
+	  				});
+	  		}, password);
+		})
+		.catch(function (response) {
+			var error = getAPIError(response);
+			if (error) {
+				cb(error);
+			} else {
 				cb('Connection error');
-				return;
 			}
-			try
-			{
-				var result = JSON.parse(obj.responseText);
-				if (result.errors)
-				{
-					throw new Error(
-						(result.errorCode ? result.errorCode : 500) + ': '
-						+ (result.errorMessage ? result.errorMessage : 'Error')
-					);
-				}
-				else
-				{
-					throw new SyntaxError('500: Invalid API response (format)');
-				}
-			}
-			catch (e)
-			{
-				cb(e);
-				return;
-			}
-			cb(text || 'Connection error');
-		}
-	});
+		});
 };
+
+function getAPIError(response){
+	var data;
+	try {
+		data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+	} catch(e) {
+		//api response is not a JSON
+		return new Error('500: Invalid API response (format)');
+	}
+	
+
+	//error found in the successful response ('soft' error)
+	if (data.error) {
+		return new Error(
+			(data.errorCode ? data.errorCode : 500) + ': '
+			+ (data.errorMessage ? data.errorMessage : 'Error')
+		);
+	}
+
+	//wrong format of the api response
+	if (data.result === undefined || response.status > 399) {
+		return new Error('500: Invalid API response (format)');
+	}
+
+	return null;
+}
