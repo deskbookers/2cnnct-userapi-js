@@ -51,6 +51,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 	function logRequest(req)
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		requests.push(req);
 		req.always(function()
 		{
@@ -60,6 +62,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 
 	function unlogRequest(req)
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		var pos = requests.indexOf(req);
 		if (pos != -1)
 		{
@@ -82,6 +86,8 @@ function UserAPI_2cnnct(publicKey, privateKey, apiHost, resellerID, apiVersion, 
 	 */
 	this.abortAll = function()
 	{
+		return;
+		//THIS FUNCTION IS NOT WORKING ATM: THIS IS ONLY DOABLE WITH JQUERY
 		for (var i = 0; i < requests.length; ++i)
 		{
 			requests[i].aborted = true;
